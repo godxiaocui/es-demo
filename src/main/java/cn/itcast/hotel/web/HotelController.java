@@ -26,5 +26,10 @@ public class HotelController {
         return hotelService.getFilters(params);
     }
 
+    @GetMapping("/suggestion")
+    public List<String> getSuggestions(@RequestParam("key") String prefix) throws IOException {
+        return hotelService.getSuggestions(prefix);
+    }
+
 
 }

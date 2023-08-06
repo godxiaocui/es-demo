@@ -10,6 +10,8 @@ import com.alibaba.fastjson.JSON;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -29,6 +31,11 @@ import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortBuilders;
 import org.elasticsearch.search.sort.SortOrder;
+import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.search.suggest.SuggestBuilder;
+import org.elasticsearch.search.suggest.SuggestBuilders;
+import org.elasticsearch.search.suggest.completion.CompletionSuggestion;
+import org.elasticsearch.xcontent.XContentType;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -97,6 +104,64 @@ public class HotelService extends ServiceImpl<HotelMapper, Hotel> implements IHo
         List<String> starTermsList = getStrings(aggregations,"staragg");
         result.put("star",starTermsList);
         return result;
+    }
+
+    @Override
+    public List<String> getSuggestions(String prefix) throws IOException {
+        //1。 准备request
+        SearchRequest request = new SearchRequest("hotel");
+        //dsl
+        request.source().suggest(new SuggestBuilder().addSuggestion(
+                "suggestions",
+                SuggestBuilders.completionSuggestion("suggestion")
+                        .prefix(prefix)
+                        .skipDuplicates(true)
+                        .size(10)
+        ));
+        //3. 发起请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        System.out.println(response);
+        // 4.处理结
+        Suggest suggest = response.getSuggest();
+        //4.1.根据名称获取补全结
+        CompletionSuggestion suggestion = suggest.getSuggestion("suggestions");
+        // 4.2.获取options并遍历
+        ArrayList<String> strings = new ArrayList<>();
+        for (CompletionSuggestion.Entry.Option option : suggestion.getOptions()) {
+            // 4.3.获取一个option中的text，也就是补全的词
+            String text = option.getText().string();
+            strings.add(text);
+        }
+        return strings;
+    }
+
+    @Override
+    public void deleteByid(Long id) {
+        //1. 准备Request请求
+        DeleteRequest request = new DeleteRequest("hotel", id.toString());
+        // 3。 发送请求
+        try {
+            client.delete(request,RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void insertByid(Long id) {
+        //
+        Hotel hotel = getById(id);
+        HotelDoc hotelDoc = new HotelDoc(hotel);
+        //1. 准备request对象
+        IndexRequest request = new IndexRequest("hotel").id(hotelDoc.getId().toString());
+        //2. 准备json文档
+        request.source(JSON.toJSONString(hotelDoc), XContentType.JSON);
+        //3. 发送请求
+        try {
+            client.index(request,RequestOptions.DEFAULT);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private List<String> getStrings(Aggregations aggregations,String name) {

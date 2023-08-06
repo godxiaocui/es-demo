@@ -31,6 +31,10 @@ import org.elasticsearch.search.aggregations.AggregationBuilder;
 import org.elasticsearch.search.aggregations.AggregationBuilders;
 import org.elasticsearch.search.aggregations.Aggregations;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
+import org.elasticsearch.search.suggest.Suggest;
+import org.elasticsearch.search.suggest.SuggestBuilder;
+import org.elasticsearch.search.suggest.SuggestBuilders;
+import org.elasticsearch.search.suggest.completion.CompletionSuggestion;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,19 +48,52 @@ import java.util.List;
 import static cn.itcast.hotel.constants.HotelContants.MAPPING_HOTEL;
 @SpringBootTest
 public class HotelIndexDocumentText {
-@Autowired
-private IHotelService hotelService;
+    @Autowired
+    private IHotelService hotelService;
     private RestHighLevelClient client;
+
     @BeforeEach
-    void beforeEach(){
-        this.client=new RestHighLevelClient(RestClient.builder(
+    void beforeEach() {
+        this.client = new RestHighLevelClient(RestClient.builder(
                 HttpHost.create("localhost:9200")
         ));
     }
+
     @AfterEach
     void afterEach() throws IOException {
         this.client.close();
     }
+
+    //测试自动补全功能
+    @Test
+    void testSuggest() throws IOException {
+        //1。 准备request
+        SearchRequest request = new SearchRequest("hotel");
+        //dsl
+        request.source().suggest(new SuggestBuilder().addSuggestion(
+                "suggestions",
+                SuggestBuilders.completionSuggestion("suggestion")
+                        .prefix("h")
+                        .skipDuplicates(true)
+                        .size(10)
+        ));
+        //3. 发起请求
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
+        System.out.println(response);
+        // 4.处理结
+        Suggest suggest = response.getSuggest();
+        //4.1.根据名称获取补全结
+        CompletionSuggestion suggestion = suggest.getSuggestion("suggestions");
+        // 4.2.获取options并遍历
+        for (CompletionSuggestion.Entry.Option option : suggestion.getOptions()) {
+            // 4.3.获取一个option中的text，也就是补全的词
+            String text = option.getText().string();
+            System.out.println(text);
+        }
+    }
+
+
+
     @Test
     void test() {
         System.out.println(client);

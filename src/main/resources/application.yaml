@@ -5,7 +5,13 @@ spring:
     url: jdbc:mysql://localhost:3306/heima?useSSL=false
     username: root
     password: czh66221183
-    driver-class-name: com.mysql.jdbc.Driver
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: itcast
+    password: 123321
+    virtual-host: /
 logging:
   level:
     cn.itcast: debug
