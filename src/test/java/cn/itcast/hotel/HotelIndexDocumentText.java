@@ -26,6 +26,11 @@ import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.aggregations.Aggregation;
+import org.elasticsearch.search.aggregations.AggregationBuilder;
+import org.elasticsearch.search.aggregations.AggregationBuilders;
+import org.elasticsearch.search.aggregations.Aggregations;
+import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.xcontent.XContentType;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -167,14 +172,30 @@ request.source().query(QueryBuilders.matchAllQuery());
     }
 
     @Test
-    void testAggregation(){
+    void testAggregation() throws IOException {
         //1. 准备request
-
+        SearchRequest request = new SearchRequest("hotel");
         //2. 准备dsl
-
+        //2.1 设置size
+        request.source().size(0);
+        //2。2 聚合
+        request.source().aggregation(AggregationBuilders
+                .terms("brandagg")
+                .field("brand")
+                .size(10));
         //3. 发送请求
-
+        SearchResponse response = client.search(request, RequestOptions.DEFAULT);
         //4.解析结果
+        Aggregations aggregations = response.getAggregations();
+        //4.1 根据聚合名称获取聚合结果
+        Terms brandTerms = aggregations.get("brandagg");
+        //获取bucket
+        List<? extends Terms.Bucket> buckets = brandTerms.getBuckets();
+        //遍历
+        for (Terms.Bucket bucket : buckets) {
+            String keyAsString = bucket.getKeyAsString();
+            System.out.println(keyAsString);
+        }
 
 
     }
